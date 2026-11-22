@@ -1,0 +1,19 @@
+[project]
+name = "blindmath"
+version = "0.1.0"
+description = "BlindMathematics: independent mathematical research by an AI trained without knowledge of the target problem"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.1", "numpy"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+blindmath = "blindmath.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["blindmath*"]
