@@ -40,13 +40,16 @@ def _lean_domain():
 
 
 def build(out_dir: str, n_total: int, seed: int = 0, val_fraction: float = 0.02,
-          include_lean: bool = True) -> dict:
+          include_lean: bool = True, with_repair: bool = False) -> dict:
     os.makedirs(out_dir, exist_ok=True)
     rng = random.Random(seed)
     reg = dict(REGISTRY)
     lean_mod = _lean_domain() if include_lean else None
     if lean_mod is not None:
         reg["lean_proofs"] = (lean_mod, 0.8)
+    if with_repair:  # needs a Lean toolchain; uses real error messages
+        from blindmath.data.generators import lean_repair
+        reg["lean_repair"] = (lean_repair, 0.3)
     total_w = sum(w for _, w in reg.values())
 
     def all_records():
@@ -89,8 +92,9 @@ def main(argv=None):
     ap.add_argument("--n", type=int, default=200_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-lean", action="store_true")
+    ap.add_argument("--with-repair", action="store_true", help="add Lean error-feedback repair data (needs Lean)")
     a = ap.parse_args(argv)
-    m = build(a.out, a.n, a.seed, include_lean=not a.no_lean)
+    m = build(a.out, a.n, a.seed, include_lean=not a.no_lean, with_repair=a.with_repair)
     print(json.dumps(m, ensure_ascii=False, indent=2, default=dict))
 
 
