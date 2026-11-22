@@ -30,7 +30,12 @@ def find_lean() -> str | None:
              os.path.expanduser("~/.elan/bin/lean")] + sorted(glob.glob("/opt/lean/*/bin/lean"), reverse=True)
     for c in cands:
         if c and os.path.exists(c):
-            return c
+            try:  # the elan proxy exists even when no toolchain is installed, so test it
+                r = subprocess.run([c, "--version"], capture_output=True, text=True, timeout=20)
+            except (subprocess.TimeoutExpired, OSError):
+                continue
+            if r.returncode == 0 and "Lean" in r.stdout:
+                return c
     return None
 
 
@@ -129,11 +134,14 @@ class LeanRunner:
             return LeanResult(False, "uses sorry", diags, raw=out)
         axioms: list[str] = []
         if name:
-            info = " ".join(d.message for d in diags if d.severity == "info")
-            if "does not depend on any axioms" not in info:
-                m2 = re.search(r"depends on axioms: \[(.*?)\]", info, re.S)
-                axioms = [a.strip() for a in m2.group(1).split(",")] if m2 else ["<unparsed>"]
-                bad = [a for a in axioms if a not in ALLOWED_AXIOMS]
-                if bad:
-                    return LeanResult(False, f"non-standard axioms: {bad}", diags, axioms, out)
+            # `lean` prints info output without a file prefix, so read the raw text.
+            esc = re.escape(name)
+            m_dep = re.search(rf"'{esc}' depends on axioms: \[(.*?)\]", out, re.S)
+            if m_dep:
+                axioms = [a.strip() for a in m_dep.group(1).split(",") if a.strip()]
+            elif not re.search(rf"'{esc}' does not depend on any axioms", out):
+                return LeanResult(False, "axiom report missing", diags, raw=out)
+            bad = [a for a in axioms if a not in ALLOWED_AXIOMS]
+            if bad:
+                return LeanResult(False, f"non-standard axioms: {bad}", diags, axioms, out)
         return LeanResult(True, "ok", diags, axioms, out)
