@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+checkpoints/*
+!checkpoints/.gitkeep
+data/corpus/*
+!data/corpus/.gitkeep
+runs/
+*.egg-info/
+.pytest_cache/
+.lake/
