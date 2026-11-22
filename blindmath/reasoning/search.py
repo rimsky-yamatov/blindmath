@@ -10,8 +10,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-import torch
-
+from blindmath.reasoning.prompts import clean_error, first_prompt, repair_prompt  # noqa: F401
 from blindmath.theorem.lean_runner import LeanResult, LeanRunner
 
 
@@ -19,29 +18,15 @@ class ModelProposer:
     def __init__(self, model, tok, device, max_new: int = 200):
         self.model, self.tok, self.device, self.max_new = model, tok, device, max_new
 
-    @torch.no_grad()
     def complete(self, prompt: str, n: int = 1, temperature: float = 0.8, top_k: int = 20) -> list[str]:
+        import torch  # lazy: keeps the rest of this module importable without torch
         out = []
         for i in range(n):
             ids = torch.tensor([self.tok.encode(prompt, bos=True)], device=self.device)
-            gen = self.model.generate(ids, self.max_new, temperature=0.0 if (n == 1 and i == 0 and temperature == 0) else temperature,
-                                      top_k=top_k, stop_ids=(self.tok.eos_id,))
+            gen = self.model.generate(ids, self.max_new, temperature=temperature, top_k=top_k,
+                                      stop_ids=(self.tok.eos_id,))
             out.append(self.tok.decode(gen[0, ids.size(1):].tolist()).split("\nQ:")[0].strip())
         return out
-
-
-def clean_error(msg: str, limit: int = 160) -> str:
-    msg = re.sub(r"^\d+:\d+\s*", "", msg.strip())
-    return " ".join(msg.split())[:limit]
-
-
-def first_prompt(prelude: str, header: str) -> str:
-    return "Q: Lean4\n" + ((prelude.strip() + "\n") if prelude.strip() else "") + header.rstrip() + "\nA:"
-
-
-def repair_prompt(prelude: str, header: str, attempt: str, error: str) -> str:
-    base = first_prompt(prelude, header)[: -len("\nA:")]
-    return f"{base}\nTry: {attempt.strip()}\nError: {clean_error(error)}\nA:"
 
 
 @dataclass

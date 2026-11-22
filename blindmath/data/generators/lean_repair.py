@@ -9,7 +9,7 @@ import random
 from typing import Iterator
 
 from blindmath.data.generators.lean_proofs import LeanItem, iter_items
-from blindmath.reasoning.search import clean_error
+from blindmath.reasoning.prompts import clean_error
 from blindmath.theorem.lean_runner import LeanRunner
 
 from .common import rec
