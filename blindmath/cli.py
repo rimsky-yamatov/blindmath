@@ -9,6 +9,8 @@ COMMANDS = {
     "train-tokenizer": ("blindmath.training.train_tokenizer", "Phase 1: train the tokenizer on the corpus"),
     "train": ("blindmath.training.train", "Phase 3/4: pre-train with the curriculum"),
     "eval": ("blindmath.evaluation.benchmark", "Phase 4: held-out exact-match benchmark"),
+    "lean-eval": ("blindmath.evaluation.lean_benchmark", "Phase 5: Lean-verified proof benchmark (pass@k)"),
+    "expert-iter": ("blindmath.training.expert_iteration", "Self-play: keep Lean-verified model proofs as data"),
     "verify-lean-data": ("blindmath.theorem.verify_templates", "Phase 5: machine-check Lean training templates"),
     "phase6": ("blindmath.experiments.phase6", "Phase 6: study unknown maps"),
     "phase7": ("blindmath.experiments.phase7", "Phase 7: final experiment (bare Lean statement)"),
