@@ -29,6 +29,11 @@ python -m blindmath.cli phase7 --ckpt checkpoints/run0/latest.pt --corpus data/c
   `python -m blindmath.cli audit data/corpus` が0件、独自の生grepでも対象関連語は0件
 - Leanコーパスは無作為1,500件をLean 4.15.0で実際にコンパイルし、失敗0件(`python -m blindmath.theorem.verify_corpus`)
 
+## 追加機能と実績(詳細は `docs/results/README.md`、学習手順は `docs/TRAINING.md`)
+- 損失は答え・証明部分のみ、KV cache生成、Lean証明ベンチマーク(pass@k)、自己改善(`expert-iter`)、高度なLean証明ファミリー
+- CPUで `mini`(3.4M)を2,400ステップ学習済み(`checkpoints/mini_cpu/latest.pt`)。算術ベンチ9.2%、Lean証明pass@1 85%(偏った小規模セット)
+- フェーズ7: 対象は証明できず。途中で見つかった定理37件は `docs/results/phase7_mini/theorems/` に記録(全て既存の自動戦略による証明)
+
 ## 構成
 | パス | 内容 |
 |---|---|
