@@ -26,6 +26,10 @@ FORBIDDEN_TERMS = [
     "halfortripleplusone", "stoppingtime", "totalstopping",
     "3n+1problem", "3x+1problem", "3n+1予想", "3x+1予想",
     "erdosmathematicsisnotyetready", "mathematicsisnotyetready",
+    "lotharcollatz", "ウラム予想", "ハッセ", "ウラム", "雹", "ひょう予想", "シラキュース問題",
+    "collatzlike", "ulam's", "ulamproblem", "syracuse",
+    # generic "famous open problem" vocabulary is kept out of the corpus as well
+    "unsolvedproblem", "openproblem", "conjecture", "未解決", "予想",
 ]
 # "ひょう" alone is a common word (表, 票...) -> keep only the katakana/english forms.
 FORBIDDEN_TERMS = [t for t in FORBIDDEN_TERMS if t != "ひょう"]
@@ -115,3 +119,28 @@ def audit_records(records: Iterable) -> AuditReport:
             for f in fs:
                 rep.by_rule[f.rule] = rep.by_rule.get(f.rule, 0) + 1
     return rep
+
+
+def audit_paths(paths: list[str]) -> dict:
+    """Scan every text/JSON/JSONL file under `paths` (incl. tokenizer vocab); returns a summary dict."""
+    import os
+    scanned = flagged = 0
+    examples: list[str] = []
+    files = []
+    for p in paths:
+        if os.path.isdir(p):
+            for root, _, fs in os.walk(p):
+                files += [os.path.join(root, f) for f in fs if f.endswith((".jsonl", ".json", ".txt", ".md", ".lean"))]
+        elif os.path.exists(p):
+            files.append(p)
+    for f in files:
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            if f.endswith("quarantine.jsonl"):
+                continue  # the quarantine file records dropped (flagged) text by design
+            for line in fh:
+                scanned += 1
+                if audit_text(line):
+                    flagged += 1
+                    if len(examples) < 3:
+                        examples.append(f"{os.path.basename(f)}: {line[:80]!r}")
+    return {"files": len(files), "scanned": scanned, "flagged": flagged, "examples": examples}
