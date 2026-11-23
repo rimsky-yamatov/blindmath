@@ -46,7 +46,7 @@ def build(out_dir: str, n_total: int, seed: int = 0, val_fraction: float = 0.02,
     reg = dict(REGISTRY)
     lean_mod = _lean_domain() if include_lean else None
     if lean_mod is not None:
-        reg["lean_proofs"] = (lean_mod, 0.8)
+        reg["lean_proofs"] = (lean_mod, 1.2)
     if with_repair:  # needs a Lean toolchain; uses real error messages
         from blindmath.data.generators import lean_repair
         reg["lean_repair"] = (lean_repair, 0.0)
