@@ -1,7 +1,8 @@
 """Build the training corpus: generate -> audit (drop leaks) -> dedupe -> split -> write JSONL + manifest.
 
 Outputs (under --out):
-  train.jsonl / val.jsonl   records with provenance fields
+  train-00000.jsonl ...     sharded training records with provenance fields (each shard < 25MB)
+  val.jsonl                 validation records
   quarantine.jsonl          records dropped by the leak audit (rule 1)
   manifest.json             counts per domain/stage/source/license + audit summary (rule 2)
 """
@@ -14,7 +15,7 @@ import os
 import random
 from collections import Counter
 
-from blindmath.data import audit
+from blindmath.data import audit, shards
 from blindmath.data.generators import (algebra, analysis, arithmetic, discrete, dynamics,
                                        logic, number_theory)
 from blindmath.data.schema import write_jsonl
@@ -67,13 +68,15 @@ def build(out_dir: str, n_total: int, seed: int = 0, val_fraction: float = 0.02,
     rng.shuffle(kept)
     n_val = max(1, int(len(kept) * val_fraction))
     val, train = kept[:n_val], kept[n_val:]
-    write_jsonl(os.path.join(out_dir, "train.jsonl"), train)
+    for stale in shards.train_files(out_dir):  # remove shards of an earlier build
+        os.remove(stale)
+    shard_names = shards.write_shards(out_dir, train)
     write_jsonl(os.path.join(out_dir, "val.jsonl"), val)
 
     # Independent re-audit of the *written* files (defence in depth).
     final = audit.audit_records(train + val)
     manifest = {
-        "seed": seed, "requested": n_total, "kept": len(kept), "train": len(train), "val": len(val),
+        "seed": seed, "requested": n_total, "train_shards": shard_names, "kept": len(kept), "train": len(train), "val": len(val),
         "by_domain": Counter(r.domain for r in kept), "by_stage": Counter(r.stage for r in kept),
         "by_kind": Counter(r.kind for r in kept), "by_source": Counter(r.source for r in kept),
         "by_license": Counter(r.license for r in kept),
