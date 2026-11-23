@@ -40,7 +40,7 @@ def _lean_domain():
 
 
 def build(out_dir: str, n_total: int, seed: int = 0, val_fraction: float = 0.02,
-          include_lean: bool = True, with_repair: bool = False) -> dict:
+          include_lean: bool = True, with_repair: bool = False, repair_n: int = 1500) -> dict:
     os.makedirs(out_dir, exist_ok=True)
     rng = random.Random(seed)
     reg = dict(REGISTRY)
@@ -49,12 +49,12 @@ def build(out_dir: str, n_total: int, seed: int = 0, val_fraction: float = 0.02,
         reg["lean_proofs"] = (lean_mod, 0.8)
     if with_repair:  # needs a Lean toolchain; uses real error messages
         from blindmath.data.generators import lean_repair
-        reg["lean_repair"] = (lean_repair, 0.3)
-    total_w = sum(w for _, w in reg.values())
+        reg["lean_repair"] = (lean_repair, 0.0)
+    total_w = sum(w for k, (_, w) in reg.items() if k != "lean_repair")
 
     def all_records():
         for name, (mod, w) in reg.items():
-            n = max(1, int(n_total * w / total_w))
+            n = repair_n if name == "lean_repair" else max(1, int(n_total * w / total_w))
             yield from mod.generate(random.Random(rng.randrange(1 << 30)), n)
 
     seen, kept = set(), []
@@ -92,9 +92,10 @@ def main(argv=None):
     ap.add_argument("--n", type=int, default=200_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-lean", action="store_true")
+    ap.add_argument("--repair-n", type=int, default=1500, help="number of Lean repair records (slow: calls Lean)")
     ap.add_argument("--with-repair", action="store_true", help="add Lean error-feedback repair data (needs Lean)")
     a = ap.parse_args(argv)
-    m = build(a.out, a.n, a.seed, include_lean=not a.no_lean, with_repair=a.with_repair)
+    m = build(a.out, a.n, a.seed, include_lean=not a.no_lean, with_repair=a.with_repair, repair_n=a.repair_n)
     print(json.dumps(m, ensure_ascii=False, indent=2, default=dict))
 
 
