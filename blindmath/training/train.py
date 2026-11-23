@@ -10,6 +10,7 @@ import time
 
 import torch
 
+from blindmath.data.shards import train_files
 from blindmath.model import GPT, ModelConfig
 from blindmath.model.config import make_config
 from blindmath.tokenizer import MathTokenizer
@@ -94,7 +95,7 @@ def train(args) -> dict:
         print(f"resumed from step {start}")
 
     mask = not args.no_mask_prompt
-    train_c = TokenizedCorpus([os.path.join(args.corpus, "train.jsonl"), *args.extra_train], tok, cfg.max_seq_len, mask)
+    train_c = TokenizedCorpus([*train_files(args.corpus), *args.extra_train], tok, cfg.max_seq_len, mask)
     val_c = TokenizedCorpus(os.path.join(args.corpus, "val.jsonl"), tok, cfg.max_seq_len, mask)
     plan = steps_per_phase(args.steps)
     use_amp = device.type == "cuda"

@@ -14,17 +14,17 @@ from collections import defaultdict
 import torch
 
 from blindmath.data.build import REGISTRY
-from blindmath.data.schema import read_jsonl
+from blindmath.data.shards import iter_train
 from blindmath.tokenizer import MathTokenizer
 from blindmath.training.train import load_model, pick_device
 
 NON_LEAN = [k for k in REGISTRY]
 
 
-def build_eval_set(per_domain: int, seed: int, train_path: str | None = None) -> list[dict]:
+def build_eval_set(per_domain: int, seed: int, corpus: str | None = None) -> list[dict]:
     train_q = set()
-    if train_path and os.path.exists(train_path):
-        train_q = {r.text.split("\n", 1)[0] for r in read_jsonl(train_path)}
+    if corpus:
+        train_q = {r.text.split("\n", 1)[0] for r in iter_train(corpus)}
     rng = random.Random(seed)
     out = []
     for dom in NON_LEAN:
@@ -57,7 +57,7 @@ def evaluate(ckpt: str, corpus: str, per_domain: int = 50, seed: int = 999, devi
     dev = pick_device(device)
     model, ck = load_model(ckpt, dev)
     tok = MathTokenizer.load(os.path.join(os.path.dirname(ckpt), ck["tokenizer"]))
-    items = build_eval_set(per_domain, seed, os.path.join(corpus, "train.jsonl"))
+    items = build_eval_set(per_domain, seed, corpus)
     hit, tot = defaultdict(int), defaultdict(int)
     for it in items:
         pred = answer_of(model, tok, it["prompt"], dev)

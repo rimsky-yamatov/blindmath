@@ -5,7 +5,7 @@ import argparse
 import os
 import random
 
-from blindmath.data.schema import read_jsonl
+from blindmath.data.shards import iter_train
 from blindmath.theorem.lean_runner import LeanRunner
 
 
@@ -23,7 +23,7 @@ def main(argv=None):
     ap.add_argument("--n", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args(argv)
-    recs = [r for r in read_jsonl(os.path.join(a.corpus, "train.jsonl")) if r.domain == "lean_proofs"]
+    recs = [r for r in iter_train(a.corpus) if r.domain == "lean_proofs"]
     rng = random.Random(a.seed)
     sample = [s for s in (source_of(r.text) for r in rng.sample(recs, min(a.n, len(recs)))) if s]
     runner = LeanRunner(timeout=300)

@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from blindmath.data.schema import read_jsonl
+from blindmath.data.shards import iter_train
 from blindmath.tokenizer import MathTokenizer
 
 
@@ -14,7 +14,7 @@ def main(argv=None):
     ap.add_argument("--vocab-size", type=int, default=1024)
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
-    texts = (r.text for r in read_jsonl(os.path.join(a.corpus, "train.jsonl")))
+    texts = (r.text for r in iter_train(a.corpus))
     tok = MathTokenizer.train(texts, a.vocab_size)
     out = a.out or os.path.join(a.corpus, "tokenizer.json")
     tok.save(out)

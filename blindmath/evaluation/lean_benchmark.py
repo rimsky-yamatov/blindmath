@@ -13,7 +13,7 @@ import re
 from collections import defaultdict
 
 from blindmath.data.generators.lean_proofs import LeanItem, iter_items
-from blindmath.data.schema import read_jsonl
+from blindmath.data.shards import iter_train
 from blindmath.reasoning.prompts import first_prompt
 from blindmath.theorem.lean_runner import LeanRunner
 
@@ -24,16 +24,16 @@ def norm(text: str) -> str:
     return _NAME.sub("NAME", " ".join(text.split()))
 
 
-def train_statements(train_path: str) -> set[str]:
+def train_statements(corpus: str) -> set[str]:
     out = set()
-    for r in read_jsonl(train_path):
+    for r in iter_train(corpus):
         if r.domain == "lean_proofs" and "\nA: " in r.text:
             out.add(norm(r.text[len("Q: Lean4\n"):].split("\nA: ", 1)[0]))
     return out
 
 
-def build_set(n: int, seed: int, train_path: str | None) -> list[LeanItem]:
-    seen = train_statements(train_path) if train_path and os.path.exists(train_path) else set()
+def build_set(n: int, seed: int, corpus: str | None) -> list[LeanItem]:
+    seen = train_statements(corpus) if corpus else set()
     out = []
     for it in iter_items(random.Random(seed), n * 6):
         if norm(it.prompt()) in seen:
@@ -56,7 +56,7 @@ def evaluate(ckpt: str, corpus: str, n: int = 60, k: int = 4, temperature: float
     model, ck = load_model(ckpt, dev)
     tok = MathTokenizer.load(os.path.join(os.path.dirname(ckpt), ck["tokenizer"]))
     prop = ModelProposer(model, tok, dev)
-    items = build_set(n, seed, os.path.join(corpus, "train.jsonl"))
+    items = build_set(n, seed, corpus)
     p1, pk, tot = defaultdict(int), defaultdict(int), defaultdict(int)
     for it in items:
         prompt = first_prompt(it.prelude, it.header)
