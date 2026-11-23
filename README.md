@@ -21,6 +21,14 @@ python -m blindmath.cli phase7 --ckpt checkpoints/run0/latest.pt --corpus data/c
 ```
 `scripts/smoke_test.sh` は数分でフルパイプラインを小さく通します。
 
+## 同梱の学習データ(`data/corpus/`、gitには含めずzipに同梱)
+- `train.jsonl`(約67.6万件)/ `val.jsonl`(約1.4万件)/ `tokenizer.json`(語彙1024、数字は1桁ずつ)/ `manifest.json` / `quarantine.jsonl`
+- 分野: 算術・整数論・Lean証明テンプレ(約15.6万件)・力学系・代数・離散・解析・論理・Leanエラー修復(約1.5千件)。出典は全て自作(CC0相当)
+- 再生成: `python -m blindmath.cli build-data --out data/corpus --n 1500000 --seed 20261123 --with-repair --repair-n 1500`
+- 漏洩検査: 監査で約2万件を除外済み(`quarantine.jsonl` はメタデータのみで、除外した本文は保存しない)。
+  `python -m blindmath.cli audit data/corpus` が0件、独自の生grepでも対象関連語は0件
+- Leanコーパスは無作為1,500件をLean 4.15.0で実際にコンパイルし、失敗0件(`python -m blindmath.theorem.verify_corpus`)
+
 ## 構成
 | パス | 内容 |
 |---|---|
