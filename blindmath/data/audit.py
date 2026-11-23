@@ -99,9 +99,11 @@ def filter_clean(records: Iterable, quarantine_path: str | None = None) -> Itera
             findings = audit_text(r.text)
             if findings:
                 if qf:
+                    # Metadata only: the flagged text itself is never stored, so the corpus folder stays clean.
                     qf.write(json.dumps({"generator": r.generator,
-                                         "findings": [asdict(f) for f in findings],
-                                         "text": r.text}, ensure_ascii=False) + "\n")
+                                         "findings": [{"layer": f.layer,
+                                                       "rule": f.rule if f.layer == "structure" else "forbidden_term"}
+                                                      for f in findings]}, ensure_ascii=False) + "\n")
                 continue
             yield r
     finally:
@@ -135,8 +137,6 @@ def audit_paths(paths: list[str]) -> dict:
             files.append(p)
     for f in files:
         with open(f, encoding="utf-8", errors="replace") as fh:
-            if f.endswith("quarantine.jsonl"):
-                continue  # the quarantine file records dropped (flagged) text by design
             for line in fh:
                 scanned += 1
                 if audit_text(line):
