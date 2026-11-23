@@ -154,8 +154,78 @@ def fam_logic(rng):
     return LeanItem("", h, pf, 2, "logic")
 
 
-FAMILIES: list[Callable] = [fam_numeric, fam_omega, fam_induction, fam_lists, fam_logic]
-WEIGHTS = [2, 3, 3, 1, 1]
+# ---- F: Peano arithmetic, divisibility, existentials, list induction, iteration, modular lemmas ------
+def _padd_prelude(t):
+    return (f"def {t} : Nat → Nat → Nat\n  | 0, m => m\n  | n+1, m => {t} n m + 1\n\n"
+            f"theorem {t}_zero_right (n : Nat) : {t} n 0 = n := by\n  induction n with\n  | zero => rfl\n"
+            f"  | succ k ih => simp [{t}, ih]\n\n"
+            f"theorem {t}_succ_right (n m : Nat) : {t} n (m+1) = {t} n m + 1 := by\n  induction n with\n  | zero => rfl\n"
+            f"  | succ k ih => simp [{t}, ih]")
+
+
+def fam_advanced(rng):
+    t = rng.choice(["padd", "plus", "addN", "peanoAdd"]) + f"{rng.randint(0, 9999)}"
+    kind = rng.choice(["padd_zero", "padd_succ", "padd_comm", "padd_eq", "pmul_eq", "dvd_trans", "dvd_mul",
+                       "dvd_add", "parity_ex", "odd_ex", "even_ex", "mysum", "rep_add", "rep_fix",
+                       "addmod", "mulmod", "sq_mod"])
+    dfn = f"def {t} : Nat → Nat → Nat\n  | 0, m => m\n  | n+1, m => {t} n m + 1"
+    if kind == "padd_zero":
+        return LeanItem(dfn, f"theorem {t}_zero_right (n : Nat) : {t} n 0 = n :=",
+                        f"by\n  induction n with\n  | zero => rfl\n  | succ k ih => simp [{t}, ih]", 7, "peano")
+    if kind == "padd_succ":
+        return LeanItem(dfn, f"theorem {t}_succ_right (n m : Nat) : {t} n (m+1) = {t} n m + 1 :=",
+                        f"by\n  induction n with\n  | zero => rfl\n  | succ k ih => simp [{t}, ih]", 7, "peano")
+    if kind == "padd_comm":
+        return LeanItem(_padd_prelude(t), f"theorem {t}_comm (n m : Nat) : {t} n m = {t} m n :=",
+                        f"by\n  induction n generalizing m with\n  | zero => simp [{t}, {t}_zero_right]\n"
+                        f"  | succ k ih => simp [{t}, ih, {t}_succ_right]", 7, "peano")
+    if kind == "padd_eq":
+        return LeanItem(dfn, f"theorem {t}_eq (n m : Nat) : {t} n m = n + m :=",
+                        f"by\n  induction n with\n  | zero => simp [{t}]\n  | succ k ih => simp [{t}, ih]; omega", 7, "peano")
+    if kind == "pmul_eq":
+        pre = f"def {t} : Nat → Nat → Nat\n  | 0, _ => 0\n  | n+1, m => {t} n m + m"
+        return LeanItem(pre, f"theorem {t}_eq (n m : Nat) : {t} n m = n * m :=",
+                        f"by\n  induction n with\n  | zero => simp [{t}]\n  | succ k ih => simp [{t}, ih, Nat.succ_mul]", 7, "peano")
+    if kind == "dvd_trans":
+        return LeanItem("", f"theorem {t} (a b c : Nat) (h1 : a ∣ b) (h2 : b ∣ c) : a ∣ c :=", "Nat.dvd_trans h1 h2", 3, "divisibility")
+    if kind == "dvd_mul":
+        return LeanItem("", f"theorem {t} (a b c : Nat) (h : a ∣ b) : a ∣ b * c :=",
+                        "by\n  obtain ⟨k, hk⟩ := h\n  exact ⟨k * c, by rw [hk, Nat.mul_assoc]⟩", 3, "divisibility")
+    if kind == "dvd_add":
+        return LeanItem("", f"theorem {t} (a b c : Nat) (h1 : a ∣ b) (h2 : a ∣ c) : a ∣ b + c :=", "Nat.dvd_add h1 h2", 3, "divisibility")
+    if kind == "parity_ex":
+        return LeanItem("", f"theorem {t} (n : Nat) : ∃ k, n = 2 * k ∨ n = 2 * k + 1 :=", "⟨n / 2, by omega⟩", 3, "existential")
+    if kind == "odd_ex":
+        return LeanItem("", f"theorem {t} (n : Nat) (h : n % 2 = 1) : ∃ k, n = 2 * k + 1 :=", "⟨n / 2, by omega⟩", 3, "existential")
+    if kind == "even_ex":
+        return LeanItem("", f"theorem {t} (n : Nat) (h : n % 2 = 0) : ∃ k, n = 2 * k :=", "⟨n / 2, by omega⟩", 3, "existential")
+    if kind == "mysum":
+        pre = f"def {t} : List Nat → Nat\n  | [] => 0\n  | x :: xs => x + {t} xs"
+        return LeanItem(pre, f"theorem {t}_append (xs ys : List Nat) : {t} (xs ++ ys) = {t} xs + {t} ys :=",
+                        f"by\n  induction xs with\n  | nil => simp [{t}]\n  | cons x xs ih => simp [{t}, ih]; omega", 5, "list_induction")
+    if kind in ("rep_add", "rep_fix"):
+        pre = f"def {t} (f : Nat → Nat) : Nat → Nat → Nat\n  | 0, x => x\n  | k+1, x => {t} f k (f x)"
+        if kind == "rep_add":
+            return LeanItem(pre, f"theorem {t}_add (f : Nat → Nat) (a b x : Nat) : {t} f (a + b) x = {t} f b ({t} f a x) :=",
+                            f"by\n  induction a generalizing x with\n  | zero => simp [{t}]\n  | succ k ih =>\n"
+                            f"    rw [show k + 1 + b = (k + b) + 1 by omega]\n    simp only [{t}]\n    exact ih (f x)", 7, "iteration")
+        return LeanItem(pre, f"theorem {t}_fix (f : Nat → Nat) (x : Nat) (h : f x = x) (k : Nat) : {t} f k x = x :=",
+                        f"by\n  induction k with\n  | zero => rfl\n  | succ k ih => simp [{t}, h, ih]", 7, "iteration")
+    if kind == "addmod":
+        return LeanItem("", f"theorem {t} (a b m : Nat) : (a + b) % m = ((a % m) + (b % m)) % m :=", "Nat.add_mod a b m", 8, "modular")
+    if kind == "mulmod":
+        return LeanItem("", f"theorem {t} (a b m : Nat) : (a * b) % m = ((a % m) * (b % m)) % m :=", "Nat.mul_mod a b m", 8, "modular")
+    m = rng.choice([2, 3, 4, 5, 7, 8])
+    res = sorted({(x * x) % m for x in range(m)})
+    disj = " ∨ ".join(f"n * n % {m} = {r}" for r in res)
+    cases = " ∨ ".join(f"n % {m} = {r}" for r in range(m))
+    pat = " | ".join(["h"] * m)
+    return LeanItem("", f"theorem {t} (n : Nat) : {disj} :=",
+                    f"by\n  have h : {cases} := by omega\n  rcases h with {pat} <;> simp [Nat.mul_mod, h]", 8, "modular")
+
+
+FAMILIES: list[Callable] = [fam_numeric, fam_omega, fam_induction, fam_lists, fam_logic, fam_advanced]
+WEIGHTS = [2, 3, 3, 1, 1, 6]
 
 
 def iter_items(rng: random.Random, n: int) -> Iterator[LeanItem]:
