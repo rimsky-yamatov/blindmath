@@ -46,13 +46,18 @@ class Attention(nn.Module):
         self.proj = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
         self.dropout = cfg.dropout
 
-    def forward(self, x, cos, sin):
+    def forward(self, x, cos, sin, past=None):
+        """past = (k, v) of earlier positions (inference only). Returns (out, present)."""
         B, T, C = x.shape
         q, k, v = self.qkv(x).view(B, T, 3, self.n_head, self.hd).permute(2, 0, 3, 1, 4)
-        q, k = apply_rope(q, cos, sin), apply_rope(k, cos, sin)
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=True,
-                                           dropout_p=self.dropout if self.training else 0.0)
-        return self.proj(y.transpose(1, 2).reshape(B, T, C))
+        q, k = apply_rope(q, cos, sin), apply_rope(k, cos, sin)   # cos/sin already offset to absolute positions
+        if past is not None:
+            k, v = torch.cat([past[0], k], dim=2), torch.cat([past[1], v], dim=2)
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=False)   # single new token sees all past
+        else:
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=True,
+                                               dropout_p=self.dropout if self.training else 0.0)
+        return self.proj(y.transpose(1, 2).reshape(B, T, C)), (k, v)
 
 
 class SwiGLU(nn.Module):
@@ -72,9 +77,10 @@ class Block(nn.Module):
         self.n1, self.attn = RMSNorm(cfg.d_model), Attention(cfg)
         self.n2, self.mlp = RMSNorm(cfg.d_model), SwiGLU(cfg)
 
-    def forward(self, x, cos, sin):
-        x = x + self.attn(self.n1(x), cos, sin)
-        return x + self.mlp(self.n2(x))
+    def forward(self, x, cos, sin, past=None):
+        a, present = self.attn(self.n1(x), cos, sin, past)
+        x = x + a
+        return x + self.mlp(self.n2(x)), present
 
 
 class GPT(nn.Module):
@@ -108,7 +114,7 @@ class GPT(nn.Module):
         x = self.tok(idx)
         cos, sin = rope_tables(T, self.cfg.d_model // self.cfg.n_head, self.cfg.rope_base, idx.device)
         for blk in self.blocks:
-            x = blk(x, cos, sin)
+            x, _ = blk(x, cos, sin)
         logits = self.head(self.norm(x))
         loss = None
         if targets is not None:
@@ -116,26 +122,39 @@ class GPT(nn.Module):
                                    ignore_index=ignore_index)
         return logits, loss
 
+    def _step(self, idx, pasts, offset):
+        """Forward `idx` (B, T) whose first token sits at absolute position `offset`, using/updating the KV cache."""
+        T = idx.size(1)
+        x = self.tok(idx)
+        cos, sin = rope_tables(offset + T, self.cfg.d_model // self.cfg.n_head, self.cfg.rope_base, idx.device)
+        cos, sin = cos[offset:], sin[offset:]
+        new = []
+        for i, blk in enumerate(self.blocks):
+            x, pr = blk(x, cos, sin, None if pasts is None else pasts[i])
+            new.append(pr)
+        return self.head(self.norm(x)), new
+
     @torch.no_grad()
     def generate(self, idx, max_new_tokens: int, temperature: float = 0.0, top_k: int | None = None,
                  stop_ids: tuple[int, ...] = ()):
-        """Autoregressive sampling; temperature 0 = greedy. Returns the full id tensor."""
+        """Autoregressive sampling with a KV cache; temperature 0 = greedy. Stops at max_seq_len."""
         was_training = self.training
         self.eval()
+        idx = idx[:, -self.cfg.max_seq_len:]
+        logits, pasts = self._step(idx, None, 0)
         for _ in range(max_new_tokens):
-            ctx = idx[:, -self.cfg.max_seq_len:]
-            logits, _ = self(ctx)
-            logits = logits[:, -1, :]
+            lg = logits[:, -1, :]
             if temperature <= 0:
-                nxt = logits.argmax(-1, keepdim=True)
+                nxt = lg.argmax(-1, keepdim=True)
             else:
-                logits = logits / temperature
+                lg = lg / temperature
                 if top_k:
-                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                    logits = logits.masked_fill(logits < v[:, [-1]], float("-inf"))
-                nxt = torch.multinomial(F.softmax(logits, -1), 1)
+                    v, _ = torch.topk(lg, min(top_k, lg.size(-1)))
+                    lg = lg.masked_fill(lg < v[:, [-1]], float("-inf"))
+                nxt = torch.multinomial(F.softmax(lg, -1), 1)
             idx = torch.cat([idx, nxt], dim=1)
-            if stop_ids and int(nxt[0, 0]) in stop_ids:
+            if (stop_ids and int(nxt[0, 0]) in stop_ids) or idx.size(1) >= self.cfg.max_seq_len:
                 break
+            logits, pasts = self._step(nxt, pasts, idx.size(1) - 1)
         self.train(was_training)
         return idx
