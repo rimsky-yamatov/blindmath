@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import random
+from array import array
 from collections import defaultdict
 
 import torch
@@ -12,12 +13,13 @@ from blindmath.tokenizer import MathTokenizer
 
 class TokenizedCorpus:
     def __init__(self, path: str, tok: MathTokenizer, max_len: int):
-        self.by_stage: dict[int, list[list[int]]] = defaultdict(list)
+        self.by_stage: dict[int, list[array]] = defaultdict(list)   # compact storage for 10^6 documents
+        code = "H" if tok.vocab_size < 65536 else "I"
         self.eos = tok.eos_id
         for r in read_jsonl(path):
             ids = tok.encode(r.text, bos=True, eos=True)
             if len(ids) <= max_len + 1:
-                self.by_stage[r.stage].append(ids)
+                self.by_stage[r.stage].append(array(code, ids))
         self.n_docs = sum(len(v) for v in self.by_stage.values())
         assert self.n_docs, f"no documents in {path}"
 
