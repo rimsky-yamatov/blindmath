@@ -13,6 +13,7 @@ import os
 from blindmath.experiments.ledger import Ledger
 from blindmath.experiments.targets import UNKNOWN_MAPS
 from blindmath.reasoning.explorer import explore, find_counterexample, orbit_info
+from blindmath.theorem.library import TheoremLibrary
 
 
 def conjectures(fn):
@@ -27,6 +28,7 @@ def conjectures(fn):
 def run(out_dir: str, upper: int = 3000) -> dict:
     os.makedirs(out_dir, exist_ok=True)
     led = Ledger(os.path.join(out_dir, "ledger.jsonl"))
+    lib = TheoremLibrary(os.path.join(out_dir, "theorems"))
     summary = {}
     for key, (desc, fn) in UNKNOWN_MAPS.items():
         ex = explore(fn, 1, upper, 2000)
@@ -36,7 +38,10 @@ def run(out_dir: str, upper: int = 3000) -> dict:
             ce = find_counterexample(pred, range(1, upper + 1))
             led.log("computation", map=key, text=f"counterexample search for: {text}",
                     range=[1, upper], counterexample=ce, note="finite search; absence of a counterexample proves nothing")
+            lib.add_conjecture(f"[{key}: {desc}] {text}", "refuted" if ce is not None else "numerically_supported",
+                               f"counterexample {ce}" if ce is not None else f"no counterexample for 1..{upper}")
             summary.setdefault(key, []).append({"conjecture": text, "counterexample": ce})
+    lib.render_markdown()
     with open(os.path.join(out_dir, "phase6_summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
     return summary
