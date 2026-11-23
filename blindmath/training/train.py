@@ -83,6 +83,8 @@ def train(args) -> dict:
     if args.seq_len:
         cfg.max_seq_len = args.seq_len
     model = GPT(cfg).to(device)                 # random init: no pretrained weights anywhere
+    if args.init_from:                                  # only for self-play rounds; never pretrained external weights
+        model.load_state_dict(torch.load(args.init_from, map_location=device, weights_only=False)["model"])
     opt = make_optimizer(model, args.lr, args.weight_decay)
     start = 0
     latest = os.path.join(out, "latest.pt")
@@ -91,8 +93,9 @@ def train(args) -> dict:
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["opt"]); start = ck["step"]
         print(f"resumed from step {start}")
 
-    train_c = TokenizedCorpus(os.path.join(args.corpus, "train.jsonl"), tok, cfg.max_seq_len)
-    val_c = TokenizedCorpus(os.path.join(args.corpus, "val.jsonl"), tok, cfg.max_seq_len)
+    mask = not args.no_mask_prompt
+    train_c = TokenizedCorpus([os.path.join(args.corpus, "train.jsonl"), *args.extra_train], tok, cfg.max_seq_len, mask)
+    val_c = TokenizedCorpus(os.path.join(args.corpus, "val.jsonl"), tok, cfg.max_seq_len, mask)
     plan = steps_per_phase(args.steps)
     use_amp = device.type == "cuda"
     log_path = os.path.join(out, "train_log.jsonl")
@@ -135,7 +138,7 @@ def add_args(ap: argparse.ArgumentParser):
     ap.add_argument("--corpus", default="data/corpus")
     ap.add_argument("--tokenizer", default="data/corpus/tokenizer.json")
     ap.add_argument("--out", default="checkpoints/run0")
-    ap.add_argument("--preset", default="tiny", choices=["tiny", "small", "base"])
+    ap.add_argument("--preset", default="tiny", choices=["tiny", "mini", "small", "base"])
     ap.add_argument("--seq-len", type=int, default=0)
     ap.add_argument("--steps", type=int, default=2000)
     ap.add_argument("--batch-size", type=int, default=16)
@@ -149,6 +152,9 @@ def add_args(ap: argparse.ArgumentParser):
     ap.add_argument("--device", default="auto")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--no-mask-prompt", action="store_true", help="train on the question text too")
+    ap.add_argument("--extra-train", nargs="*", default=[], help="more JSONL files (e.g. self-play proofs)")
+    ap.add_argument("--init-from", default=None, help="continue from a checkpoint's weights (fresh optimizer)")
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ class ModelConfig:
 # Random-initialised from scratch; pick by hardware.
 PRESETS = {
     "tiny":  dict(n_layer=2, n_head=4, d_model=128, d_ff=344,  max_seq_len=256),   # CPU smoke tests
+    "mini":  dict(n_layer=4, n_head=4, d_model=256, d_ff=688,  max_seq_len=320),   # ~3.5M params, CPU-trainable
     "small": dict(n_layer=6, n_head=6, d_model=384, d_ff=1024, max_seq_len=512),   # laptop GPU / strong CPU
     "base":  dict(n_layer=12, n_head=12, d_model=768, d_ff=2048, max_seq_len=1024),  # single desktop GPU
 }
