@@ -90,7 +90,7 @@ def _unary_add(a, b):
 
 
 def gen_peano(rng):
-    a, b = rng.randint(0, 5), rng.randint(0, 5)
+    a, b = rng.randint(0, 60), rng.randint(0, 60)
     op = rng.choice(["add", "mul"])
     if op == "add":
         return qa(f"Peano: add(0,n)=n, add(S(m),n)=S(add(m,n)). Compute add({a},{b}).",
@@ -108,7 +108,7 @@ def gen_cnf(rng):
 
 
 def gen_primitive_recursion(rng):
-    k = rng.randint(0, 8)
+    k = rng.randint(0, 30)
     kind = rng.choice(["fact", "fib", "pred"])
     if kind == "fact":
         v = 1
