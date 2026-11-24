@@ -10,6 +10,7 @@ Leanが厳格に受理した証明のみを成功とする。
 ## クイックスタート
 ```bash
 pip install -e ".[dev]"            # torch, numpy, pytest
+# 学習データは同梱済み(再生成する場合のみ build-data)
 # Lean 4 (任意だが推奨): elan を入れるか、BLINDMATH_LEAN=/path/to/lean を設定
 python -m blindmath.cli build-data --out data/corpus --n 300000 --with-repair   # Phase 2 (監査つき)
 python -m blindmath.cli audit data/corpus                                       # 漏洩検査
@@ -21,13 +22,14 @@ python -m blindmath.cli phase7 --ckpt checkpoints/run0/latest.pt --corpus data/c
 ```
 `scripts/smoke_test.sh` は数分でフルパイプラインを小さく通します。
 
-## 同梱の学習データ(`data/corpus/`、gitには含めずzipに同梱)
-- `train.jsonl`(約67.6万件)/ `val.jsonl`(約1.4万件)/ `tokenizer.json`(語彙1024、数字は1桁ずつ)/ `manifest.json` / `quarantine.jsonl`
-- 分野: 算術・整数論・Lean証明テンプレ(約15.6万件)・力学系・代数・離散・解析・論理・Leanエラー修復(約1.5千件)。出典は全て自作(CC0相当)
-- 再生成: `python -m blindmath.cli build-data --out data/corpus --n 1500000 --seed 20261123 --with-repair --repair-n 1500`
-- 漏洩検査: 監査で約2万件を除外済み(`quarantine.jsonl` はメタデータのみで、除外した本文は保存しない)。
-  `python -m blindmath.cli audit data/corpus` が0件、独自の生grepでも対象関連語は0件
-- Leanコーパスは無作為1,500件をLean 4.15.0で実際にコンパイルし、失敗0件(`python -m blindmath.theorem.verify_corpus`)
+## 学習データ(`data/corpus/`、gitに含まれる・分割済み)
+- `train-00000.jsonl` 〜 `train-00016.jsonl`(計約114.9万件、各約23MBに分割。GitHubの100MB上限に収まる)/ `val.jsonl`(約2.3万件)
+- `tokenizer.json`(語彙1024、数字は1桁ずつ)/ `manifest.json`(件数・出典・シャード一覧)/ `quarantine.jsonl`(除外した件のメタデータのみ)/ `self_play.jsonl`(Leanが検証したモデル自身の証明292件)
+- 分野(件数): Lean証明30.3万・算術17.7万・整数論16.1万・線形代数12.7万・力学系10.0万・幾何7.6万・代数6.5万・確率4.3万・論理3.7万・離散3.6万・解析2.1万・数列2.1万・Lean修復5千。出典は全て自作(CC0相当)
+- 再生成: `python -m blindmath.cli build-data --out data/corpus --n 2600000 --seed 20261124 --with-repair --repair-n 5000`
+- 漏洩検査: 監査で約2.6万件を除外済み(`quarantine.jsonl` は本文を保存しない)。`python -m blindmath.cli audit data/corpus` は120万行超で0件、独自の生grepでも対象関連語は0件
+- Leanコーパスは無作為1,200件をLean 4.15.0でコンパイルし失敗0件(`python -m blindmath.theorem.verify_corpus`)。テンプレート自体も累計約4,000件を検証済み
+- 注意: `checkpoints/mini_cpu/` のモデルは一つ前の(より小さい)コーパス版で学習したもので、専用のトークナイザを同じフォルダに持ちます。新コーパスで学習し直す場合は `train-tokenizer` からやり直してください
 
 ## 追加機能と実績(詳細は `docs/results/README.md`、学習手順は `docs/TRAINING.md`)
 - 損失は答え・証明部分のみ、KV cache生成、Lean証明ベンチマーク(pass@k)、自己改善(`expert-iter`)、高度なLean証明ファミリー
