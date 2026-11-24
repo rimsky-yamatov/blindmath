@@ -16,8 +16,8 @@ import random
 from collections import Counter
 
 from blindmath.data import audit, shards
-from blindmath.data.generators import (algebra, analysis, arithmetic, discrete, dynamics,
-                                       logic, number_theory)
+from blindmath.data.generators import (algebra, analysis, arithmetic, discrete, dynamics, geometry,
+                                       linear_algebra, logic, number_theory, probability, sequences)
 from blindmath.data.schema import write_jsonl
 
 # domain -> (module, relative weight)
@@ -29,6 +29,10 @@ REGISTRY = {
     "discrete": (discrete, 0.8),
     "analysis": (analysis, 0.6),
     "dynamics": (dynamics, 0.8),
+    "geometry": (geometry, 0.5),
+    "linear_algebra": (linear_algebra, 0.6),
+    "probability": (probability, 0.5),
+    "sequences": (sequences, 0.5),
 }
 
 
