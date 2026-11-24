@@ -224,8 +224,42 @@ def fam_advanced(rng):
                     f"by\n  have h : {cases} := by omega\n  rcases h with {pat} <;> simp [Nat.mul_mod, h]", 8, "modular")
 
 
-FAMILIES: list[Callable] = [fam_numeric, fam_omega, fam_induction, fam_lists, fam_logic, fam_advanced]
-WEIGHTS = [2, 3, 3, 1, 1, 6]
+# ---- G: miscellaneous core-library facts (lists, Bool, order, propositional iff, rewriting) -------------
+def fam_misc(rng):
+    n = _name(rng, "misc")
+    items = [
+        (f"theorem {n} (xs ys : List Nat) : (xs ++ ys).reverse = ys.reverse ++ xs.reverse :=", "by simp", 5, "lists"),
+        (f"theorem {n} (xs : List Nat) (f g : Nat → Nat) : (xs.map f).map g = xs.map (g ∘ f) :=", "by simp", 5, "lists"),
+        (f"theorem {n} (xs : List Nat) : xs.reverse.reverse.length = xs.length :=", "by simp", 5, "lists"),
+        (f"theorem {n} (p q : Bool) : (p && q) = (q && p) :=", "by cases p <;> cases q <;> rfl", 2, "bool"),
+        (f"theorem {n} (p q : Bool) : (p || q) = (q || p) :=", "by cases p <;> cases q <;> rfl", 2, "bool"),
+        (f"theorem {n} (p : Bool) : (!!p) = p :=", "by cases p <;> rfl", 2, "bool"),
+        (f"theorem {n} (a b : Nat) : max a b = max b a :=", "Nat.max_comm a b", 3, "order"),
+        (f"theorem {n} (a b : Nat) : min a b = min b a :=", "Nat.min_comm a b", 3, "order"),
+        (f"theorem {n} (a b c : Nat) : a * (b + c) = a * b + a * c :=", "Nat.left_distrib a b c", 3, "ring_laws"),
+        (f"theorem {n} (a b c : Nat) : a + b + c = a + (b + c) :=", "Nat.add_assoc a b c", 3, "ring_laws"),
+        (f"theorem {n} (a b : Nat) : a * b = b * a :=", "Nat.mul_comm a b", 3, "ring_laws"),
+        (f"theorem {n} (a b : Nat) (h : a ≤ b) : a < b + 1 :=", "by omega", 3, "omega"),
+        (f"theorem {n} (xs : List Nat) : xs.length = 0 → xs = [] :=",
+         "by\n  intro h\n  cases xs with\n  | nil => rfl\n  | cons x xs => simp at h", 5, "lists"),
+        (f"theorem {n} (p q r : Prop) : (p ∧ q) ∧ r ↔ p ∧ (q ∧ r) :=",
+         "⟨fun ⟨⟨a, b⟩, c⟩ => ⟨a, b, c⟩, fun ⟨a, b, c⟩ => ⟨⟨a, b⟩, c⟩⟩", 2, "logic"),
+        (f"theorem {n} (p q : Prop) : ¬(p ∧ q) ↔ (p → ¬q) :=",
+         "⟨fun h hp hq => h ⟨hp, hq⟩, fun h ⟨hp, hq⟩ => h hp hq⟩", 2, "logic"),
+        (f"theorem {n} (n : Nat) : 0 + n = n :=", "Nat.zero_add n", 1, "ring_laws"),
+        (f"theorem {n} (a b : Nat) (h : a = b) : b = a :=", "h.symm", 2, "equality"),
+        (f"theorem {n} (f : Nat → Nat) (a b : Nat) (h : a = b) : f a = f b :=", "congrArg f h", 2, "equality"),
+    ]
+    k = rng.randint(2, 6)
+    items.append((f"theorem {n} (n : Nat) (h : n < {k}) : n * n < {k * k} :=",
+                  "by\n  have : " + " ∨ ".join(f"n = {i}" for i in range(k)) + " := by omega\n  rcases this with "
+                  + " | ".join(["h"] * k) + " <;> simp [h]", 8, "case_split"))
+    h, pf, st, fam = rng.choice(items)
+    return LeanItem("", h, pf, st, fam)
+
+
+FAMILIES: list[Callable] = [fam_numeric, fam_omega, fam_induction, fam_lists, fam_logic, fam_advanced, fam_misc]
+WEIGHTS = [2, 3, 3, 1, 1, 6, 3]
 
 
 def iter_items(rng: random.Random, n: int) -> Iterator[LeanItem]:
