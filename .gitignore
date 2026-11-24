@@ -1,11 +1,10 @@
 __pycache__/
 *.pyc
 .venv/
-checkpoints/*
-!checkpoints/.gitkeep
-data/corpus/*
-!data/corpus/.gitkeep
 runs/
 *.egg-info/
 .pytest_cache/
 .lake/
+# resume-state checkpoints (model + optimizer, ~3x larger); the weights-only step_*.pt files are tracked
+checkpoints/**/latest.pt
+*.tmp
