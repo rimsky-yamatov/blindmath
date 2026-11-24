@@ -10,7 +10,7 @@
 
 ## コマンド例(GPU)
 ```bash
-python -m blindmath.cli build-data --out data/corpus --n 3000000 --with-repair --repair-n 5000
+python -m blindmath.cli build-data --out data/corpus --n 5000000 --seed 1 --with-repair --repair-n 10000   # 同梱版より大きく(シャード分割される)
 python -m blindmath.cli train-tokenizer --corpus data/corpus --vocab-size 2048
 python -m blindmath.cli train --corpus data/corpus --tokenizer data/corpus/tokenizer.json \
   --out checkpoints/base --preset base --steps 200000 --batch-size 32 --grad-accum 4 --lr 6e-4 --warmup 2000 --resume
