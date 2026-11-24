@@ -160,9 +160,69 @@ def gen_parity_structure(rng):
     return qa(f"What is {n}^2 mod 4?", "squares are 0 or 1 mod 4", str(n * n % 4))
 
 
+def gen_primitive_root(rng):
+    p = rng.choice([q for q in range(3, 80) if is_prime(q)])
+    roots = [g for g in range(1, p) if len({pow(g, k, p) for k in range(1, p)}) == p - 1]
+    return qa(f"List the primitive roots modulo {p}.", f"g is a primitive root iff its order is {p - 1}", str(roots))
+
+
+def gen_wilson(rng):
+    n = rng.randint(2, 30)
+    f = 1
+    for i in range(2, n): f = f * i % n
+    return qa(f"({n - 1})! mod {n} = ? Is {n} prime?", "Wilson: (n-1)! = -1 mod n iff n is prime",
+              f"{f}, {'prime' if is_prime(n) else 'not prime'}")
+
+
+def gen_perfect(rng):
+    n = rng.randint(2, 600)
+    s = sum(d for d in range(1, n) if n % d == 0)
+    return qa(f"Sum of proper divisors of {n}; deficient, perfect or abundant?", "add divisors below n",
+              f"{s}, {'perfect' if s == n else 'abundant' if s > n else 'deficient'}")
+
+
+def gen_crt3(rng):
+    ms = rng.sample([3, 5, 7, 11, 13], 3)
+    x = rng.randint(0, ms[0] * ms[1] * ms[2] - 1)
+    return qa(f"Solve x = {x % ms[0]} (mod {ms[0]}), x = {x % ms[1]} (mod {ms[1]}), x = {x % ms[2]} (mod {ms[2]}).",
+              "pairwise coprime", f"x = {x} (mod {ms[0] * ms[1] * ms[2]})")
+
+
+def gen_nth_prime(rng):
+    k = rng.randint(1, 200)
+    c, n = 0, 1
+    while c < k:
+        n += 1
+        if is_prime(n): c += 1
+    return qa(f"What is the {k}-th prime?", "count primes in order", str(n))
+
+
+def gen_pi_count(rng):
+    n = rng.randint(10, 3000)
+    return qa(f"How many primes are at most {n}?", "sieve", str(sum(1 for m in range(2, n + 1) if is_prime(m))))
+
+
+def gen_pell(rng):
+    d = rng.choice([x for x in range(2, 60) if int(x ** .5) ** 2 != x])
+    y = 1
+    while True:
+        x2 = d * y * y + 1; x = int(x2 ** .5)
+        if x * x == x2: break
+        y += 1
+        if y > 20000: return gen_pell(rng)
+    return qa(f"Smallest positive solution of x^2 - {d}y^2 = 1?", "search y, test that d y^2 + 1 is a square", f"x={x}, y={y}")
+
+
+def gen_gcd_lcm3(rng):
+    a, b, c = (rng.randint(2, 300) for _ in range(3))
+    g = math.gcd(math.gcd(a, b), c); l = a * b // math.gcd(a, b); l = l * c // math.gcd(l, c)
+    return qa(f"gcd and lcm of {a}, {b}, {c}?", "fold pairwise", f"gcd={g}, lcm={l}")
+
+
 GENS3 = [gen_gcd, gen_bezout, gen_modop, gen_modpow, gen_inverse, gen_primality, gen_factor,
-         gen_phi_divisors, gen_crt, gen_fermat, gen_parity_structure]
-GENS8 = [gen_valuation, gen_order, gen_qr, gen_two_squares]
+         gen_phi_divisors, gen_crt, gen_fermat, gen_parity_structure, gen_wilson, gen_perfect, gen_crt3,
+         gen_nth_prime, gen_pi_count, gen_gcd_lcm3]
+GENS8 = [gen_valuation, gen_order, gen_qr, gen_two_squares, gen_primitive_root, gen_pell]
 
 
 def generate(rng: random.Random, n: int) -> Iterator:
