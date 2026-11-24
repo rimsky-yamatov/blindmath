@@ -90,8 +90,50 @@ def gen_parity_digits(rng):
     return qa(f"{kind} of {n}?", "", ans)
 
 
+def gen_base_convert(rng):
+    n, b = rng.randint(0, 5000), rng.choice([2, 3, 5, 7, 8, 16])
+    digs, m = "", n
+    while m: digs = "0123456789abcdef"[m % b] + digs; m //= b
+    return qa(f"Write {n} in base {b}.", "repeated division by the base", digs or "0")
+
+
+def gen_decimal_period(rng):
+    q = rng.randint(2, 60); p = rng.randint(1, q - 1)
+    seen, r, digs = {}, p, ""
+    while r and r not in seen:
+        seen[r] = len(digs); r *= 10; digs += str(r // q); r %= q
+    if r == 0:
+        return qa(f"Decimal expansion of {p}/{q}?", "long division", f"0.{digs} (terminates)")
+    i = seen[r]
+    return qa(f"Decimal expansion of {p}/{q}?", "long division until a remainder repeats", f"0.{digs[:i]}({digs[i:]}) repeating")
+
+
+def gen_lcm_word(rng):
+    a, b = rng.randint(2, 60), rng.randint(2, 60)
+    import math
+    return qa(f"Two events repeat every {a} and {b} days. After how many days do they coincide again?", f"lcm({a},{b}) = {a * b}/gcd", str(a * b // math.gcd(a, b)))
+
+
+def gen_percent(rng):
+    p, n = rng.choice([5, 10, 12, 15, 20, 25, 40, 75]), rng.randint(2, 400) * 4
+    return qa(f"What is {p}% of {n}?", f"{n}*{p}/100", str(n * p / 100).rstrip("0").rstrip("."))
+
+
+def gen_isqrt(rng):
+    import math
+    n = rng.randint(1, 10 ** rng.randint(2, 8))
+    r = math.isqrt(n)
+    return qa(f"Integer square root (floor) of {n}?", f"{r}^2={r * r} <= {n} < {(r + 1) ** 2}", str(r))
+
+
+def gen_bigmul(rng):
+    a, b = rng.randint(10 ** 5, 10 ** 9), rng.randint(10 ** 3, 10 ** 6)
+    return qa(f"{a} * {b} = ?", "split the second factor by digits and add", str(a * b))
+
+
 GENS = [gen_add, gen_sub, gen_mul, gen_divmod, gen_compare, gen_power, gen_order_of_ops,
-        gen_sets, gen_parity_digits]
+        gen_sets, gen_parity_digits, gen_base_convert, gen_decimal_period, gen_lcm_word, gen_percent, gen_isqrt,
+        gen_bigmul]
 
 
 def generate(rng: random.Random, n: int) -> Iterator:
